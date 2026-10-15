@@ -1,0 +1,11 @@
+{
+  "name": "sparky-count-and-kick-local",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Standalone local runner for the Astrocade Count & Kick game",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "start": "node server.cjs",
+    "download-assets": "node download-assets.cjs"
+  }
+}

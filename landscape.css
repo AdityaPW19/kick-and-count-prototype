@@ -1,0 +1,73 @@
+/* One 1280 × 720 scene: canvas and DOM share the same scaled coordinates. */
+html, body { background: #102b3d; height: 100%; height: 100dvh; }
+body { position: relative; }
+#game-world {
+    position: absolute; width: 1280px; height: 720px;
+    left: 50%; top: 50%; transform: translate(-50%, -50%) scale(var(--game-scale, 1));
+    border-radius: 24px; box-shadow: 0 20px 80px #0006;
+    isolation: isolate;
+}
+.top-ui { top: 24px; left: 24px; right: 24px; grid-template-columns: auto 1fr auto; gap: 20px; }
+.hud-controls { display: flex; gap: 12px; }
+.btn-icon { width: 64px; height: 64px; min-height: 64px; font-size: 26px; border-width: 3px; }
+.hud-title { font-size: 22px; padding: 17px 25px; letter-spacing: 1px; }
+.info-display { flex-direction: row; gap: 12px; }
+.info-pill { min-width: 130px; min-height: 58px; font-size: 23px; }
+#star-display { min-width: 110px; }
+.speech-bubble {
+    width: 320px; max-width: 320px; padding: 22px 24px;
+    font-size: 28px; line-height: 1.25; border-width: 4px; border-radius: 26px;
+    pointer-events: none; transform-origin: bottom center;
+}
+.speech-bubble::before { left: 130px; }
+.speech-bubble::after { left: 126px; }
+.game-hint {
+    position: absolute; bottom: 14px; left: 410px; right: 36px;
+    text-align: center; color: white; font-size: 22px; font-weight: 700;
+    text-shadow: 0 2px 5px #123924; pointer-events: none;
+}
+.start-screen { background: linear-gradient(90deg, transparent 35%, #073a5680 63%, #073a56b8); }
+.start-screen h1 {
+    top: 142px; left: 650px; right: 50px; font-size: 94px;
+    line-height: .96; letter-spacing: 2px;
+}
+.start-screen h2 { top: 354px; left: 667px; width: 546px; font-size: 28px; padding: 12px 20px; }
+.start-screen .btn#play-btn {
+    left: 940px; bottom: 134px; width: 420px; min-height: 102px;
+    font-size: 42px; padding: 18px 24px;
+}
+.start-screen .btn#play-btn:disabled { cursor: wait; filter: saturate(.5); }
+.menu-kicker {
+    position: absolute; left: 682px; right: 70px; top: 98px;
+    text-align: center; color: #d0f5ff; font-size: 20px;
+    font-weight: 700; letter-spacing: 4px;
+}
+.menu-help {
+    position: absolute; bottom: 76px; left: 660px; right: 60px;
+    text-align: center; color: white; font-size: 23px; text-shadow: 0 2px 4px #063344;
+}
+.start-screen .btn#sound-toggle { bottom: 28px; left: 28px; width: 64px; height: 64px; min-width: 64px; min-height: 64px; }
+#menu-fullscreen-btn { position: absolute; bottom: 28px; left: 108px; }
+.modal-overlay { position: absolute; padding: 24px; }
+.modal { width: 520px; max-width: 520px; max-height: 664px; overflow-y: auto; padding: 28px 34px; border-radius: 32px; }
+.modal h1 { font-size: 50px; margin-bottom: 12px; }
+.modal h2, .pause-card h2 { font-size: 38px; margin-bottom: 14px; }
+.modal p { font-size: 25px; margin-bottom: 22px; }
+.pause-emblem { width: 76px; height: 76px; margin-bottom: 14px; font-size: 36px; }
+.modal .btn, .pause-card #resume-btn, .pause-card #restart-btn, .pause-card #home-btn { min-height: 72px; font-size: 26px; padding: 14px; }
+.btn:focus-visible, summary:focus-visible { outline: 5px solid #ffdc58; outline-offset: 5px; }
+#orientation-prompt {
+    display: none; position: fixed; inset: 0; z-index: 5000;
+    padding: max(30px, env(safe-area-inset-top)) 24px;
+    align-items: center; justify-content: center; flex-direction: column;
+    background: radial-gradient(ellipse at top, #226e85, #102b3d 75%);
+    color: white; text-align: center;
+}
+.rotate-device { font-size: 78px; margin-bottom: 28px; }
+#orientation-prompt h2 { font-size: 32px; margin-bottom: 16px; }
+#orientation-prompt p { max-width: 320px; color: #c5e5ee; font-size: 20px; line-height: 1.5; }
+@media (orientation: portrait) {
+    #orientation-prompt { display: flex; }
+    #game-world { visibility: hidden; }
+}
+@media (prefers-reduced-motion: reduce) { #game-world { scroll-behavior: auto; } }

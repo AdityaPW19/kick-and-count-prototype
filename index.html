@@ -1,0 +1,1673 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="icon" href="data:,">
+    <title>Football – Count & Kick</title>
+    <style>
+        /* CSS Reset */
+        *, *::before, *::after {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        /* CSS Custom Properties */
+        :root {
+            /* Animation Timings */
+            --transition-fast: 150ms;
+            --transition-normal: 300ms;
+            --transition-slow: 500ms;
+
+            /* Easing Functions */
+            --ease-out: cubic-bezier(0.0, 0, 0.2, 1);
+            --ease-bounce: cubic-bezier(0.68, -0.6, 0.32, 1.6);
+
+            /* Spacing Scale */
+            --space-xs: 8px;
+            --space-sm: 16px;
+            --space-md: 24px;
+            --space-lg: 32px;
+            --space-xl: 48px;
+
+            /* Colors */
+            --color-sky: #87CEEB;
+            --color-grass: #7EC850;
+            --color-navy: #2C3E50;
+            --color-orange: #FF6B35;
+            --color-yellow: #FFD700;
+            --color-white: #FFFFFF;
+            --color-shadow: rgba(0, 0, 0, 0.3);
+        }
+
+        /* Base Styles */
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            touch-action: none;
+            -ms-touch-action: none;
+            font-family: 'Fredoka', 'Comic Sans MS', sans-serif;
+        }
+
+        #game-world {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(to bottom, #87CEEB 0%, #5DADE2 100%);
+            overflow: hidden;
+        }
+
+        /* Game Canvas */
+        #game-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* UI Overlay Container */
+        .ui-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 100;
+        }
+
+        .ui-overlay > * {
+            pointer-events: auto;
+        }
+
+        /* Gameplay HUD: a clear, touch-friendly scoreboard header. */
+        .top-ui {
+            position: absolute;
+            top: 18px;
+            left: 20px;
+            right: 20px;
+            display: grid;
+            grid-template-columns: 76px 1fr auto;
+            align-items: center;
+            gap: 14px;
+            z-index: 120;
+        }
+
+        /* Buttons */
+        .btn {
+            min-height: 72px;
+            padding: 14px 26px;
+            border: 3px solid rgba(255,255,255,.92);
+            border-radius: 22px;
+            font-size: 25px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: transform var(--transition-fast) var(--ease-out), filter var(--transition-fast) ease, box-shadow var(--transition-fast) ease;
+            box-shadow: 0 5px 0 rgba(24,49,69,.28), 0 9px 18px rgba(13,36,56,.22);
+            font-family: 'Fredoka', 'Comic Sans MS', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+        }
+
+        .btn:active { transform: translateY(3px) scale(.97); filter: brightness(.96); }
+        .btn-primary { background: linear-gradient(180deg, #58d86c, #28ad4c); color: white; text-shadow: 0 2px 1px rgba(20,91,43,.3); }
+        .btn-secondary { background: linear-gradient(180deg, #43b9f2, #2389d3); color: white; text-shadow: 0 2px 1px rgba(16,72,125,.3); }
+
+        .btn-icon {
+            width: 76px;
+            height: 76px;
+            min-height: 76px;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 30px;
+            background: linear-gradient(180deg, #365875, #203c57);
+            color: white;
+            border-radius: 50%;
+            border: 4px solid rgba(255,255,255,.96);
+            box-shadow: 0 5px 0 #173047, 0 8px 16px rgba(10,31,49,.3), inset 0 2px 0 rgba(255,255,255,.16);
+        }
+
+        #pause-btn { position: relative; z-index: 1; }
+        #pause-btn::after {
+            position: absolute; top: calc(100% + 5px); left: 50%;
+            transform: translateX(-50%); color: white; font-size: 14px; line-height: 1;
+            letter-spacing: .7px; text-shadow: 0 2px 4px rgba(0,0,0,.55);
+        }
+
+        .hud-title {
+            justify-self: center; padding: 11px 24px 12px;
+            border: 3px solid rgba(255,255,255,.88); border-radius: 999px;
+            background: linear-gradient(180deg, rgba(23,60,87,.9), rgba(15,43,65,.88));
+            color: #fff; font-size: 20px; line-height: 1; font-weight: 700;
+            letter-spacing: 1.5px; text-shadow: 0 2px 1px rgba(0,0,0,.28);
+            box-shadow: 0 4px 10px rgba(9,35,53,.22), inset 0 1px 0 rgba(255,255,255,.2);
+            white-space: nowrap;
+        }
+
+        .info-display { display: flex; flex-direction: column; align-items: stretch; gap: 8px; }
+        .info-pill {
+            min-width: 132px; min-height: 54px; padding: 7px 16px;
+            border: 3px solid rgba(255,255,255,.9); border-radius: 19px;
+            color: white; font-size: 21px; line-height: 1; font-weight: 700;
+            display: flex; align-items: center; justify-content: center; gap: 9px;
+            box-shadow: 0 4px 0 rgba(20,48,67,.22), 0 7px 13px rgba(10,34,50,.22), inset 0 1px 0 rgba(255,255,255,.18);
+            white-space: nowrap;
+        }
+        #level-display { background: linear-gradient(180deg, #328ec7, #22689f); }
+        #level-display::before { content: '🏆'; font-size: 21px; }
+        #star-display { background: linear-gradient(180deg, #f7b934, #e98720); color: #fff; text-shadow: 0 1px 1px rgba(113,64,6,.35); }
+
+.speech-bubble {
+    position: absolute;
+    width: min(380px, calc(100% - 32px));
+    max-width: 300px;
+    padding: 14px 20px;
+
+    background: #fff;
+    border: 4px solid var(--color-navy);
+    border-radius: 24px;
+
+    font-size: clamp(18px, 3.8vw, 24px);
+    line-height: 1.2;
+    font-weight: bold;
+    color: var(--color-navy);
+
+    box-shadow: 0 4px 8px var(--color-shadow);
+
+    z-index: 50;
+    opacity: 0;
+
+    transform: scale(0.92);
+    transform-origin: bottom left;
+
+    transition:
+        opacity var(--transition-normal) var(--ease-out),
+        transform var(--transition-normal) var(--ease-bounce);
+}
+
+.speech-bubble.visible {
+    opacity: 1;
+    transform: scale(1);
+}
+
+/* Bubble tail points toward Sparky */
+.speech-bubble::before {
+    content: '';
+    position: absolute;
+
+    bottom: -18px;
+    left: 34px;
+
+    width: 0;
+    height: 0;
+
+    border-left: 18px solid transparent;
+    border-right: 18px solid transparent;
+    border-top: 18px solid #fff;
+}
+
+.speech-bubble::after {
+    content: '';
+    position: absolute;
+
+    bottom: -26px;
+    left: 30px;
+
+    width: 0;
+    height: 0;
+
+    border-left: 22px solid transparent;
+    border-right: 22px solid transparent;
+    border-top: 22px solid var(--color-navy);
+
+    z-index: -1;
+}
+
+        /* Modal Overlay */
+        .modal-overlay {
+            position: fixed; inset: 0; padding: 24px;
+            background: rgba(12, 35, 55, .66);
+            backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px);
+            display: flex; align-items: center; justify-content: center;
+            z-index: 1000; opacity: 0; pointer-events: none;
+            transition: opacity var(--transition-normal);
+        }
+        .modal-overlay.visible { opacity: 1; pointer-events: auto; }
+
+        /* Modal Content */
+        .modal {
+            position: relative; overflow: hidden;
+            background: linear-gradient(180deg, #fff 0%, #f2faff 100%);
+            border: 5px solid #fff; border-radius: 36px;
+            padding: 42px 38px 38px; max-width: 500px; width: min(90%, 500px);
+            box-shadow: 0 12px 0 rgba(19,68,101,.28), 0 24px 55px rgba(0,0,0,.3), inset 0 0 0 2px rgba(69,167,218,.22);
+            text-align: center;
+        }
+        .modal h1 { font-size: 52px; color: var(--color-navy); margin-bottom: var(--space-md); }
+        .modal h2 { font-size: 40px; line-height: 1.05; color: var(--color-navy); margin-bottom: var(--space-md); }
+        .modal p { font-size: 24px; color: #466174; margin-bottom: var(--space-lg); }
+        .modal-buttons { display: flex; flex-direction: column; gap: 14px; }
+        .modal .btn { width: 100%; min-height: 82px; padding: 16px; font-size: 28px; border-radius: 24px; }
+
+        .pause-card::before, .pause-card::after {
+            content: ''; position: absolute; border-radius: 50%; pointer-events: none; opacity: .52;
+        }
+        .pause-card::before { width: 180px; height: 180px; top: -104px; right: -54px; background: #b9ecff; }
+        .pause-card::after { width: 130px; height: 130px; bottom: -84px; left: -45px; background: #c9f3ce; }
+        .pause-card > * { position: relative; z-index: 1; }
+        .pause-emblem {
+            width: 94px; height: 94px; margin: 0 auto 18px; display: grid; place-items: center;
+            border: 5px solid #fff; border-radius: 50%; background: linear-gradient(180deg, #4bb9ec, #287fbd);
+            box-shadow: 0 5px 0 #1c6795, 0 10px 18px rgba(25,87,126,.22); font-size: 44px;
+        }
+        .pause-card h2 { margin-bottom: 9px; font-size: 42px; color: #214762; }
+        .pause-card .pause-caption { margin: 0 0 25px; font-size: 22px; color: #668093; }
+        .pause-card .modal-buttons { gap: 13px; }
+        .pause-card #resume-btn { min-height: 88px; font-size: 30px; }
+        .pause-card #restart-btn, .pause-card #home-btn { min-height: 76px; font-size: 25px; }
+        .pause-card #home-btn { background: linear-gradient(180deg, #8296a7, #607789); }
+
+        /* Main menu: dedicated hero scene with controls anchored to safe edges. */
+        .start-screen {
+            position: absolute;
+            inset: 0;
+            z-index: 500;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            overflow: hidden;
+            background: linear-gradient(180deg, rgba(13, 119, 190, 0.10) 0%, rgba(11, 74, 120, 0.03) 55%, rgba(16, 48, 73, 0.18) 100%);
+        }
+
+        .start-screen h1 {
+            position: absolute;
+            top: 4.5%;
+            left: 3%;
+            right: 3%;
+            text-align: center;
+            font-size: clamp(48px, 10.2vw, 84px);
+            line-height: 0.84;
+            letter-spacing: 1px;
+            color: #fff;
+            -webkit-text-stroke: 2px #164a78;
+            paint-order: stroke fill;
+            text-shadow: 0 5px 0 #f6b91b, 0 9px 0 #e87919, 0 14px 22px rgba(10, 37, 72, 0.58);
+            filter: drop-shadow(0 3px 0 rgba(255,255,255,0.35));
+        }
+
+        .start-screen h2 {
+            position: absolute;
+            top: 18%;
+            margin: 0;
+            padding: 10px 24px;
+            border: 3px solid rgba(255, 255, 255, 0.94);
+            border-radius: 999px;
+            background: linear-gradient(180deg, rgba(22, 72, 113, 0.94), rgba(17, 49, 83, 0.92));
+            color: #fff;
+            font-size: clamp(20px, 4.2vw, 30px);
+            text-align: center;
+            text-shadow: 0 2px 2px rgba(0,0,0,0.24);
+            box-shadow: 0 5px 0 rgba(7, 42, 78, 0.58), 0 9px 18px rgba(17, 40, 63, 0.32);
+        }
+
+        .start-screen .btn#play-btn {
+            position: absolute;
+            left: 50%;
+            bottom: 11%;
+            transform: translateX(-50%);
+            width: min(78%, 430px);
+            min-width: 0;
+            min-height: 100px;
+            margin: 0;
+            padding: 20px 36px;
+            border: 5px solid rgba(255, 255, 255, 0.98);
+            border-radius: 999px;
+            background: linear-gradient(180deg, #70ed69 0%, #36c94f 48%, #18a744 100%);
+            color: #fff;
+            font-size: clamp(34px, 6.4vw, 48px);
+            letter-spacing: 3px;
+            box-shadow: inset 0 5px 0 rgba(255,255,255,0.28), 0 9px 0 #11733b, 0 16px 26px rgba(5, 34, 43, 0.42);
+            text-shadow: 0 3px 2px rgba(0, 0, 0, 0.2);
+            transition: transform 150ms ease, box-shadow 150ms ease;
+        }
+
+        .start-screen .btn#play-btn:active {
+            transform: translate(-50%, 5px) scale(0.98);
+            box-shadow: inset 0 3px 0 rgba(255,255,255,0.2), 0 3px 0 #11733b, 0 7px 14px rgba(10, 40, 38, 0.3);
+        }
+
+        .start-screen .btn#sound-toggle {
+            position: absolute;
+            left: 24px;
+            bottom: 24px;
+            width: 72px;
+            height: 72px;
+            min-width: 72px;
+            margin: 0;
+            padding: 0;
+            border: 3px solid #fff;
+            border-radius: 50%;
+            background: rgba(35, 58, 81, 0.94);
+            color: #fff;
+            font-size: 30px;
+            box-shadow: 0 5px 12px rgba(0, 0, 0, 0.28);
+            z-index: 2;
+        }
+
+        @media (max-height: 700px) {
+            .start-screen h1 { top: 4%; }
+            .start-screen h2 { top: 14%; }
+            .start-screen .btn#play-btn { bottom: 10%; min-height: 78px; }
+            .start-screen .btn#sound-toggle { width: 64px; height: 64px; left: 16px; bottom: 16px; }
+        }
+
+        /* Animations */
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-10px); }
+            75% { transform: translateX(10px); }
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-8px); }
+        }
+
+        @keyframes rotate {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.8); }
+            to { opacity: 1; transform: scale(1); }
+        }
+
+        @keyframes fadeOut {
+            from { opacity: 1; transform: scale(1); }
+            to { opacity: 0; transform: scale(0.8); }
+        }
+
+        @keyframes star-burst {
+            0% { 
+                opacity: 1;
+                transform: translate(0, 0) scale(0.5);
+            }
+            100% { 
+                opacity: 0;
+                transform: translate(var(--tx), var(--ty)) scale(1.5);
+            }
+        }
+
+        /* Reduced Motion */
+        @media (prefers-reduced-motion: reduce) {
+            * {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+            }
+        }
+
+        /* Hidden */
+        .hidden {
+            display: none !important;
+        }
+    </style>
+    <link rel="stylesheet" href="landscape.css">
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div id="game-world">
+        <canvas id="game-canvas" tabindex="0" aria-label="Count the footballs and choose the matching numbered ball. You can also press its number on the keyboard; press 0 for ten."></canvas>
+        
+        <!-- UI Overlay -->
+        <div class="ui-overlay">
+            <!-- Gameplay HUD -->
+            <div class="top-ui hidden">
+                <div class="hud-controls">
+                    <button class="btn btn-icon" id="pause-btn" title="Pause game" aria-label="Pause game">Ⅱ</button>
+                    <button class="btn btn-icon" id="game-sound-toggle" title="Sound on/off" aria-label="Toggle gameplay sound">🔊</button>
+                    <button class="btn btn-icon" id="fullscreen-btn" title="Full screen" aria-label="Toggle full screen">⛶</button>
+                </div>
+                <div class="hud-title" aria-hidden="true">COUNT &amp; KICK</div>
+                <div class="info-display" aria-label="Game progress">
+                    <div class="info-pill" id="level-display">Level 1</div>
+                    <div class="info-pill" id="star-display">⭐ 0</div>
+                </div>
+            </div>
+
+            <!-- Speech Bubble -->
+            <div class="speech-bubble" id="speech-bubble" role="status" aria-live="polite"></div>
+            <div class="game-hint hidden" id="game-hint">Count the balls. Kick the matching number!</div>
+        </div>
+
+        <!-- Start Screen -->
+        <div class="start-screen" id="start-screen">
+            <div class="menu-kicker">PLAY • COUNT • LEARN</div>
+            <h1>COUNT<br>&amp; KICK</h1>
+            <h2>Count. Choose. Goal!</h2>
+            <button class="btn btn-primary" id="play-btn">PLAY</button>
+            <button class="btn btn-icon" id="sound-toggle" title="Sound on/off" aria-label="Toggle sound">🔊</button>
+            <button class="btn btn-icon" id="menu-fullscreen-btn" title="Full screen" aria-label="Toggle full screen">⛶</button>
+            <div class="menu-help">A little counting. A lot of goals. ⚽</div>
+        </div>
+
+        <!-- Pause Modal -->
+        <div class="modal-overlay" id="pause-modal">
+            <div class="modal pause-card" role="dialog" aria-modal="true" aria-labelledby="pause-title">
+                <div class="pause-emblem" aria-hidden="true">⚽</div>
+                <h2 id="pause-title">Take a Break</h2>
+                <p class="pause-caption">Your game is paused</p>
+                <div class="modal-buttons">
+                    <button class="btn btn-primary" id="resume-btn">▶ &nbsp; Resume</button>
+                    <button class="btn btn-secondary" id="restart-btn">↻ &nbsp; Restart</button>
+                    <button class="btn btn-secondary" id="home-btn">⌂ &nbsp; Home</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Level Complete Modal -->
+        <div class="modal-overlay" id="level-complete-modal">
+            <div class="modal">
+                <h2>Great Kicking!</h2>
+                <p id="level-complete-message">Level Complete!</p>
+                <button class="btn btn-primary" id="next-level-btn">Next Level</button>
+            </div>
+        </div>
+
+        <!-- Game Complete Modal -->
+        <div class="modal-overlay" id="game-complete-modal">
+            <div class="modal">
+                <h1>🏆</h1>
+                <h2>You're a Counting Champion!</h2>
+                <p id="final-score">Total Stars: 25</p>
+                <div class="modal-buttons">
+                    <button class="btn btn-primary" id="replay-btn">Replay</button>
+                    <button class="btn btn-secondary" id="home-btn-2">Home</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div id="orientation-prompt" role="status">
+        <div class="rotate-device" aria-hidden="true">↻ ▯</div>
+        <h2>Turn to play!</h2>
+        <p>Rotate your device sideways for Count &amp; Kick.<br>Your game will wait right here.</p>
+    </div>
+
+    <script src="local-runtime.js"></script>
+    <script>
+        /**
+         * Football – Count & Kick
+         * 
+         * An educational counting game for Grade 1 students (ages 6-7).
+         * Players count football icons on a scoreboard, then tap the matching
+         * numbered football to score a goal. Features 5 levels of progressive
+         * difficulty, encouraging mascot feedback, and satisfying animations.
+         * 
+         * Core Mechanics:
+         * - See quantity of footballs (1-10)
+         * - Count them
+         * - Find the matching numeral on answer footballs
+         * - Tap to kick into goal
+         * - Celebration on success, gentle encouragement on incorrect attempt
+         */
+
+        async function run(mode) {
+            const gameWorld = document.getElementById('game-world');
+            const canvas = document.getElementById('game-canvas');
+            const ctx = canvas.getContext('2d');
+
+            // Supply safe defaults before reading nested settings. The host may
+            // start the game before a configuration object has been attached.
+            const defaultGameConfig = {
+                difficulty: { starting_level: 1, questions_per_level: 5, enable_tutorial: true },
+                levels: [
+                    { max_number: 3, answer_choices: 3 },
+                    { max_number: 5, answer_choices: 3 },
+                    { max_number: 5, answer_choices: 4 },
+                    { max_number: 7, answer_choices: 4 },
+                    { max_number: 10, answer_choices: 5 }
+                ],
+                visual: { sparky_enabled: true, sound_enabled_default: true, confetti_enabled: true },
+                text: {
+                    sparky_question: 'How many balls are there?',
+                    sparky_answer: 'Kick the ball with the same number!',
+                    sparky_correct: ['Great!', 'Goal!', 'You got it!'],
+                    sparky_incorrect: 'Try again!'
+                }
+            };
+            if (!window.gameConfig || typeof window.gameConfig !== 'object') window.gameConfig = {};
+            for (const section of ['difficulty', 'visual', 'text']) {
+                window.gameConfig[section] = Object.assign(
+                    {}, defaultGameConfig[section],
+                    window.gameConfig[section] && typeof window.gameConfig[section] === 'object'
+                        ? window.gameConfig[section] : {}
+                );
+            }
+            if (!Array.isArray(window.gameConfig.levels) || window.gameConfig.levels.length === 0) {
+                window.gameConfig.levels = defaultGameConfig.levels;
+            }
+            window.gameConfig.levels = window.gameConfig.levels.map((level, index) =>
+                Object.assign({}, defaultGameConfig.levels[index] || defaultGameConfig.levels[4], level || {})
+            );
+            if (!Array.isArray(window.gameConfig.text.sparky_correct) || !window.gameConfig.text.sparky_correct.length) {
+                window.gameConfig.text.sparky_correct = defaultGameConfig.text.sparky_correct;
+            }
+
+            // Audio Context
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            let soundEnabled = window.gameConfig.visual.sound_enabled_default;
+
+            // Asset cache
+            const assets = {};
+            const audioBuffers = {};
+
+            // Game state
+            let currentLevel = 0;
+            let questionsCorrect = 0;
+            let totalStars = 0;
+            let currentQuestion = null;
+            let gameStarted = false;
+            let isPaused = false;
+            let tutorialCompleted = false;
+            let isAnimating = false;
+            let selectedAnswer = null;
+            let answerEntranceStart = 0;
+            const answerEntranceDuration = 1050;
+            let answersEntering = false;
+            let gameTime = 0;
+            let previousFrame = 0;
+            let gameTimers = [];
+            const portraitQuery = matchMedia('(orientation: portrait)');
+            const gameIsWaiting = () => isPaused || portraitQuery.matches;
+            function schedule(callback, delay) {
+                gameTimers.push({ callback, due: gameTime + delay });
+            }
+
+            function startAnswerEntrance() {
+                answerEntranceStart = gameTime;
+                answersEntering = true;
+            }
+
+            // Mascot state
+            let sparkyState = 'neutral'; // greeting, pointing, kicking, supportive, idle emotes and celebration
+            let tutorialActive = false;
+
+            // Goal dimensions (used in render and handleCorrectAnswer)
+            const goalWidth = 330;
+            const goalHeight = 230;
+            const goalX = 665;
+            const goalY = 282;
+
+            // Initialize display
+            function resizeCanvas() {
+                canvas.width = 1280;
+                canvas.height = 720;
+                const scale = Math.min(window.innerWidth / 1280, window.innerHeight / 720);
+                gameWorld.style.setProperty('--game-scale', scale);
+            }
+            resizeCanvas();
+            window.addEventListener('resize', resizeCanvas);
+
+            // Asset preloading
+            async function preloadAssets() {
+                const imageIds = [
+                    'background_football_field',
+                    'menu_sparky_kicking_portrait',
+                    'menu_sparky_kicking',
+                    'football_goal_with_net',
+                    'sparky_neutral',
+                    'sparky_celebrating',
+                    'sparky_encouraging',
+                    'sparky_greeting',
+                    'sparky_point_goal',
+                    'sparky_point_instruction',
+                    'sparky_kicking_tutorial',
+                    'sparky_supportive_motivating',
+                    'sparky_idle_foot_bounce',
+                    'sparky_idle_fingertip_spin',
+                    'football_answer_template',
+                    'football_small_icon',
+                    'star_particle'
+                ];
+
+                const audioIds = [
+                    'button_tap_sfx',
+                    'football_kick_sfx',
+                    'goal_success_sfx',
+                    'incorrect_gentle_sfx',
+                    'level_complete_sfx'
+                ];
+
+                // Load images
+                for (const id of imageIds) {
+                    const assetInfo = lib.getAsset(id);
+                    if (assetInfo) {
+                        const img = new Image();
+                        const loaded = await new Promise((resolve) => {
+                            img.onload = () => resolve(true);
+                            img.onerror = () => {
+                                console.warn(`Failed to load image: ${id}`);
+                                resolve(false); // Do not draw a broken image.
+                            };
+                            img.src = assetInfo.url;
+                        });
+                        if (loaded) assets[id] = img;
+                    }
+                }
+
+                // Load audio
+                for (const id of audioIds) {
+                    const assetInfo = lib.getAsset(id);
+                    if (assetInfo) {
+                        try {
+                            const response = await fetch(assetInfo.url);
+                            const arrayBuffer = await response.arrayBuffer();
+                            const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+                            audioBuffers[id] = audioBuffer;
+                        } catch (error) {
+                            console.warn(`Failed to load audio: ${id}`, error);
+                        }
+                    }
+                }
+            }
+
+            // Play sound
+            function playSound(soundId) {
+                if (!soundEnabled || !audioBuffers[soundId]) return;
+
+                try {
+                    const source = audioContext.createBufferSource();
+                    source.buffer = audioBuffers[soundId];
+                    source.connect(audioContext.destination);
+                    source.start(0);
+                } catch (error) {
+                    console.warn('Error playing sound:', error);
+                }
+            }
+
+            // Show game parameters
+            if (mode === 'edit' || mode === 'play') {
+                lib.showGameParameters({
+                    name: 'Count & Kick Settings',
+                    params: {
+                        'Starting Level': {
+                            key: 'difficulty.starting_level',
+                            type: 'slider',
+                            min: 1,
+                            max: 5,
+                            step: 1
+                        },
+                        'Questions Per Level': {
+                            key: 'difficulty.questions_per_level',
+                            type: 'slider',
+                            min: 3,
+                            max: 10,
+                            step: 1
+                        },
+                        'Enable Tutorial': {
+                            key: 'difficulty.enable_tutorial',
+                            type: 'checkbox'
+                        },
+                        'Show Sparky': {
+                            key: 'visual.sparky_enabled',
+                            type: 'checkbox'
+                        },
+                        'Enable Confetti': {
+                            key: 'visual.confetti_enabled',
+                            type: 'checkbox'
+                        }
+                    }
+                });
+            }
+
+            // Load tutorial completion state
+            try {
+                const savedState = await lib.getUserGameState();
+                if (savedState && savedState.state) {
+                    tutorialCompleted = savedState.state.tutorialCompleted || false;
+                }
+            } catch (error) {
+                console.warn('Could not load saved state:', error);
+            }
+
+            await preloadAssets();
+
+            // UI Elements
+            const startScreen = document.getElementById('start-screen');
+            const pauseBtn = document.getElementById('pause-btn');
+            const playBtn = document.getElementById('play-btn');
+            const soundToggle = document.getElementById('sound-toggle');
+            const pauseModal = document.getElementById('pause-modal');
+            const resumeBtn = document.getElementById('resume-btn');
+            const restartBtn = document.getElementById('restart-btn');
+            const homeBtn = document.getElementById('home-btn');
+            const levelCompleteModal = document.getElementById('level-complete-modal');
+            const nextLevelBtn = document.getElementById('next-level-btn');
+            const gameCompleteModal = document.getElementById('game-complete-modal');
+            const replayBtn = document.getElementById('replay-btn');
+            const homeBtn2 = document.getElementById('home-btn-2');
+            const levelDisplay = document.getElementById('level-display');
+            const starDisplay = document.getElementById('star-display');
+            const speechBubble = document.getElementById('speech-bubble');
+
+            const topUI = document.querySelector('.top-ui');
+            const gameHint = document.getElementById('game-hint');
+
+            // Keep gameplay HUD completely off the separate home-screen scene.
+            function updateUI() {
+                levelDisplay.textContent = `Level ${currentLevel + 1}`;
+                starDisplay.textContent = `⭐ ${totalStars}`;
+                topUI.classList.toggle('hidden', !gameStarted);
+                gameHint.classList.toggle('hidden', !gameStarted);
+            }
+
+            // Show speech bubble
+            function showSpeech(text) {
+                speechBubble.textContent = text;
+                speechBubble.classList.add('visible');
+            }
+
+            function hideSpeech() {
+                speechBubble.classList.remove('visible');
+            }
+
+            // Question generation
+            function generateQuestion(levelIndex) {
+                const level = window.gameConfig.levels[levelIndex];
+                const targetNumber = Math.floor(Math.random() * level.max_number) + 1;
+                
+                // Use nearby, unique choices within the level's number range.
+                // Building a finite candidate list avoids getting stuck when the
+                // target is near an edge (for example, 1 in the 1–10 level).
+                const answers = [targetNumber];
+                const candidates = [];
+                for (let value = 1; value <= level.max_number; value++) {
+                    if (value !== targetNumber) candidates.push(value);
+                }
+                candidates.sort((a, b) => Math.abs(a - targetNumber) - Math.abs(b - targetNumber));
+                const nearestDistance = Math.abs(candidates[level.answer_choices - 2] - targetNumber);
+                const nearby = candidates.filter(value => Math.abs(value - targetNumber) <= nearestDistance);
+                for (let i = nearby.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [nearby[i], nearby[j]] = [nearby[j], nearby[i]];
+                }
+                answers.push(...nearby.slice(0, level.answer_choices - 1));
+                
+                // Shuffle answers
+                for (let i = answers.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [answers[i], answers[j]] = [answers[j], answers[i]];
+                }
+                
+                return {
+                    targetNumber,
+                    answers,
+                    correctAnswerIndex: answers.indexOf(targetNumber)
+                };
+            }
+
+            // Start new question
+            function startQuestion() {
+                if (!gameStarted) return;
+                currentQuestion = generateQuestion(currentLevel);
+                startAnswerEntrance();
+                const questionForPrompt = currentQuestion;
+                isAnimating = false;
+                selectedAnswer = null;
+                sparkyState = 'point_instruction';
+                showSpeech(window.gameConfig.text.sparky_question);
+                
+                // Sparky guides attention from the counted objects to the choices.
+                schedule(() => {
+                    if (!gameStarted || currentQuestion !== questionForPrompt || isAnimating) return;
+                    showSpeech(window.gameConfig.text.sparky_answer);
+                    sparkyState = 'supportive';
+                    // When the child has had time to look, return to playful idle emotes.
+                    schedule(() => {
+                        if (gameStarted && currentQuestion === questionForPrompt && !isAnimating) {
+                            sparkyState = 'neutral';
+                        }
+                    }, 2500);
+                }, 1500);
+            }
+
+            // Handle answer selection
+            function selectAnswer(index) {
+                if (!gameStarted || gameIsWaiting() || isAnimating || answersEntering || !currentQuestion) return;
+                
+                playSound('button_tap_sfx');
+                selectedAnswer = index;
+                isAnimating = true;
+                
+                const isCorrect = index === currentQuestion.correctAnswerIndex;
+                
+                if (isCorrect) {
+                    handleCorrectAnswer();
+                } else {
+                    handleIncorrectAnswer();
+                }
+            }
+
+            // Handle correct answer
+            function handleCorrectAnswer() {
+                sparkyState = tutorialActive ? 'kicking_tutorial' : 'celebrating';
+                playSound('football_kick_sfx');
+                
+                // Start kick animation
+                const answerPositions = getAnswerFootballPositions();
+                const startPos = answerPositions[selectedAnswer];
+                
+                kickAnimation = {
+                    active: true,
+                    progress: 0,
+                    startX: startPos.x,
+                    startY: startPos.y,
+                    endX: goalX + goalWidth / 2,
+                    endY: goalY + goalHeight / 2
+                };
+                
+                // Animate kick (handled in render)
+                schedule(() => {
+                    sparkyState = 'point_goal';
+                    playSound('goal_success_sfx');
+                    
+                    // Show success message
+                    const messages = window.gameConfig.text.sparky_correct;
+                    const message = messages[Math.floor(Math.random() * messages.length)];
+                    showSpeech(message);
+                    schedule(() => {
+                        if (gameStarted) sparkyState = 'celebrating';
+                    }, 850);
+                    
+                    // Award star
+                    totalStars++;
+                    questionsCorrect++;
+                    updateUI();
+                    
+                    // Mark tutorial as completed and return to ordinary guidance.
+                    tutorialActive = false;
+                    if (!tutorialCompleted) {
+                        tutorialCompleted = true;
+                        try {
+                            lib.saveUserGameState({ tutorialCompleted: true });
+                        } catch (error) {
+                            console.warn('Could not save tutorial state:', error);
+                        }
+                    }
+                    
+                    // Check level completion
+                    if (questionsCorrect >= window.gameConfig.difficulty.questions_per_level) {
+                        schedule(() => {
+                            levelComplete();
+                        }, 1500);
+                    } else {
+                        schedule(() => {
+                            startQuestion();
+                        }, 1500);
+                    }
+                }, 800);
+            }
+
+            // Handle incorrect answer
+            function handleIncorrectAnswer() {
+                sparkyState = 'supportive_motivating';
+                playSound('incorrect_gentle_sfx');
+                
+                schedule(() => {
+                    showSpeech(window.gameConfig.text.sparky_incorrect);
+                    isAnimating = false;
+                    selectedAnswer = null;
+                    // Let the reassuring pose read before returning to an idle trick.
+                    schedule(() => {
+                        if (gameStarted && !isAnimating && sparkyState === 'supportive_motivating') {
+                            sparkyState = 'neutral';
+                        }
+                    }, 1800);
+                }, 600);
+            }
+
+            // Level complete
+            function levelComplete() {
+                playSound('level_complete_sfx');
+                
+                if (currentLevel >= window.gameConfig.levels.length - 1) {
+                    // Game complete
+                    gameComplete();
+                } else {
+                    // Show level complete modal
+                    document.getElementById('level-complete-message').textContent = 
+                        `Level ${currentLevel + 1} Complete!`;
+                    levelCompleteModal.classList.add('visible');
+                }
+            }
+
+            // Game complete
+            function gameComplete() {
+                document.getElementById('final-score').textContent = `Total Stars: ${totalStars}`;
+                gameCompleteModal.classList.add('visible');
+                
+                // Save high score
+                try {
+                    lib.saveUserGameState({
+                        tutorialCompleted: true,
+                        highScore: totalStars
+                    });
+                } catch (error) {
+                    console.warn('Could not save state:', error);
+                }
+            }
+
+            // Start game
+            function startGame() {
+                gameTimers = [];
+                currentQuestion = null;
+                kickAnimation.active = false;
+                isAnimating = false;
+                selectedAnswer = null;
+                startScreen.classList.add('hidden');
+                gameStarted = true;
+                currentLevel = window.gameConfig.difficulty.starting_level - 1;
+                questionsCorrect = 0;
+                totalStars = 0;
+                tutorialActive = false;
+                sparkyState = 'greeting';
+                showSpeech('Hello, friend! Let’s count together!');
+                updateUI();
+                
+                // A short hello makes the first interaction feel welcoming.
+                schedule(() => {
+                    if (!gameStarted) return;
+                    if (window.gameConfig.difficulty.enable_tutorial && !tutorialCompleted) {
+                        startTutorial();
+                    } else {
+                        startQuestion();
+                    }
+                }, 1100);
+            }
+
+            // Tutorial
+            function startTutorial() {
+                // A tiny guided practice round demonstrates count, match, and kick.
+                tutorialActive = true;
+                currentQuestion = {
+                    targetNumber: 3,
+                    answers: [2, 3, 4],
+                    correctAnswerIndex: 1
+                };
+                startAnswerEntrance();
+                sparkyState = 'point_instruction';
+                showSpeech('How many balls?');
+                
+                const tutorialQuestion = currentQuestion;
+                schedule(() => {
+                    if (!gameStarted || currentQuestion !== tutorialQuestion) return;
+                    sparkyState = 'supportive';
+                    showSpeech('Tap the ball with 3!');
+                    schedule(() => {
+                        if (gameStarted && currentQuestion === tutorialQuestion && !isAnimating) {
+                            sparkyState = 'neutral';
+                        }
+                    }, 3000);
+                }, 1500);
+            }
+
+            // Event Listeners
+            playBtn.addEventListener('click', () => {
+                audioContext.resume().catch(error => console.warn('Could not enable sound:', error));
+                playSound('button_tap_sfx');
+                startGame();
+            });
+
+            pauseBtn.addEventListener('click', () => {
+                playSound('button_tap_sfx');
+                isPaused = true;
+                pauseModal.classList.add('visible');
+            });
+
+            resumeBtn.addEventListener('click', () => {
+                playSound('button_tap_sfx');
+                isPaused = false;
+                pauseModal.classList.remove('visible');
+            });
+
+            restartBtn.addEventListener('click', () => {
+                playSound('button_tap_sfx');
+                gameTimers = [];
+                kickAnimation.active = false;
+                tutorialActive = false;
+                questionsCorrect = 0;
+                pauseModal.classList.remove('visible');
+                isPaused = false;
+                startQuestion();
+            });
+
+            homeBtn.addEventListener('click', () => {
+                playSound('button_tap_sfx');
+                gameTimers = [];
+                currentQuestion = null;
+                kickAnimation.active = false;
+                gameStarted = false;
+                isPaused = false;
+                pauseModal.classList.remove('visible');
+                hideSpeech();
+                updateUI();
+                startScreen.classList.remove('hidden');
+            });
+
+            homeBtn2.addEventListener('click', () => {
+                playSound('button_tap_sfx');
+                gameTimers = [];
+                currentQuestion = null;
+                kickAnimation.active = false;
+                gameStarted = false;
+                gameCompleteModal.classList.remove('visible');
+                hideSpeech();
+                updateUI();
+                startScreen.classList.remove('hidden');
+            });
+
+            nextLevelBtn.addEventListener('click', () => {
+                playSound('button_tap_sfx');
+                currentLevel++;
+                questionsCorrect = 0;
+                levelCompleteModal.classList.remove('visible');
+                updateUI();
+                startQuestion();
+            });
+
+            replayBtn.addEventListener('click', () => {
+                playSound('button_tap_sfx');
+                gameTimers = [];
+                kickAnimation.active = false;
+                tutorialActive = false;
+                currentLevel = 0;
+                questionsCorrect = 0;
+                totalStars = 0;
+                gameCompleteModal.classList.remove('visible');
+                updateUI();
+                startQuestion();
+            });
+
+            const gameSoundToggle = document.getElementById('game-sound-toggle');
+            function toggleSound() {
+                soundEnabled = !soundEnabled;
+                updateSoundButtons();
+                if (soundEnabled) {
+                    audioContext.resume().catch(error => console.warn('Could not enable sound:', error));
+                    playSound('button_tap_sfx');
+                }
+            }
+            function updateSoundButtons() {
+                for (const button of [soundToggle, gameSoundToggle]) {
+                    button.textContent = soundEnabled ? '🔊' : '🔇';
+                    button.setAttribute('aria-pressed', String(soundEnabled));
+                }
+            }
+            soundToggle.addEventListener('click', toggleSound);
+            gameSoundToggle.addEventListener('click', toggleSound);
+            updateSoundButtons();
+            async function toggleFullscreen() {
+                try {
+                    if (document.fullscreenElement) await document.exitFullscreen();
+                    else if (document.documentElement.requestFullscreen) await document.documentElement.requestFullscreen();
+                } catch (error) { console.warn('Fullscreen is not available:', error); }
+            }
+            document.getElementById('fullscreen-btn').addEventListener('click', toggleFullscreen);
+            document.getElementById('menu-fullscreen-btn').addEventListener('click', toggleFullscreen);
+            document.addEventListener('keydown', event => {
+                if (event.target.matches('input, textarea, select') || !currentQuestion || !/^[0-9]$/.test(event.key)) return;
+                const number = event.key === '0' ? 10 : Number(event.key);
+                const index = currentQuestion.answers.indexOf(number);
+                if (index !== -1) selectAnswer(index);
+            });
+
+            // Canvas interaction
+            canvas.addEventListener('click', (e) => {
+                if (!gameStarted || isPaused || !currentQuestion) return;
+                
+                const rect = canvas.getBoundingClientRect();
+                const x = (e.clientX - rect.left) * canvas.width / rect.width;
+                const y = (e.clientY - rect.top) * canvas.height / rect.height;
+                
+                // Check if clicked on an answer football
+                const answerFootballs = getAnswerFootballPositions();
+                answerFootballs.forEach((pos, index) => {
+                    const dx = x - pos.x;
+                    const dy = y - pos.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    
+                    if (distance < pos.radius) {
+                        selectAnswer(index);
+                    }
+                });
+            });
+
+            canvas.addEventListener('touchstart', (e) => {
+                if (!gameStarted || isPaused || !currentQuestion) return;
+                e.preventDefault();
+                
+                const rect = canvas.getBoundingClientRect();
+                const touch = e.touches[0];
+                const x = (touch.clientX - rect.left) * canvas.width / rect.width;
+                const y = (touch.clientY - rect.top) * canvas.height / rect.height;
+                
+                const answerFootballs = getAnswerFootballPositions();
+                answerFootballs.forEach((pos, index) => {
+                    const dx = x - pos.x;
+                    const dy = y - pos.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    
+                    if (distance < pos.radius) {
+                        selectAnswer(index);
+                    }
+                });
+            });
+
+            // Get answer football positions
+            function getAnswerFootballPositions() {
+                if (!currentQuestion) return [];
+                
+                const positions = [];
+                const numAnswers = currentQuestion.answers.length;
+                const spacing = 810 / numAnswers;
+                const y = 607;
+                const radius = 64;
+                
+                for (let i = 0; i < numAnswers; i++) {
+                    positions.push({
+                        x: 425 + spacing * (i + 0.5),
+                        y: y,
+                        radius: radius,
+                        number: currentQuestion.answers[i]
+                    });
+                }
+                
+                return positions;
+            }
+
+            // Particle system
+            const particles = [];
+            
+            function createStarBurst(x, y) {
+                if (!window.gameConfig.visual.confetti_enabled) return;
+                
+                for (let i = 0; i < 15; i++) {
+                    const angle = (Math.PI * 2 * i) / 15;
+                    const speed = 2 + Math.random() * 3;
+                    particles.push({
+                        x: x,
+                        y: y,
+                        vx: Math.cos(angle) * speed,
+                        vy: Math.sin(angle) * speed,
+                        life: 1,
+                        decay: 0.02,
+                        size: 15 + Math.random() * 10
+                    });
+                }
+            }
+
+            // Animation state
+            let kickAnimation = {
+                active: false,
+                progress: 0,
+                startX: 0,
+                startY: 0,
+                endX: 0,
+                endY: 0
+            };
+
+            // Render game
+            function render(timestamp) {
+                const delta = previousFrame ? Math.min(50, timestamp - previousFrame) : 0;
+                previousFrame = timestamp;
+                const advancing = gameStarted && !gameIsWaiting();
+                if (advancing) {
+                    gameTime += delta;
+                    const dueTimers = gameTimers.filter(timer => timer.due <= gameTime);
+                    gameTimers = gameTimers.filter(timer => timer.due > gameTime);
+                    for (const timer of dueTimers) timer.callback();
+                }
+                timestamp = gameTime;
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                
+                // A wide field and a separate mascot keep landscape artwork uncropped.
+                const menuBg = assets.background_football_field;
+                if (!gameStarted && menuBg && menuBg.width) {
+                    const wash = ctx.createLinearGradient(0, 0, 0, canvas.height);
+                    wash.addColorStop(0, '#13578f');
+                    wash.addColorStop(0.55, '#67c9ef');
+                    wash.addColorStop(1, '#174e78');
+                    ctx.fillStyle = wash;
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                    if (menuBg) {
+                        const scale = Math.max(canvas.width / menuBg.width, canvas.height / menuBg.height);
+                        const artWidth = menuBg.width * scale;
+                        const artHeight = menuBg.height * scale;
+                        ctx.drawImage(menuBg, (canvas.width - artWidth) / 2, (canvas.height - artHeight) / 2, artWidth, artHeight);
+                    }
+
+                    // Keep headline and controls legible over detailed stadium artwork.
+                    const shade = ctx.createLinearGradient(0, 0, 0, canvas.height);
+                    shade.addColorStop(0, 'rgba(8, 45, 83, 0.42)');
+                    shade.addColorStop(0.23, 'rgba(8, 45, 83, 0.02)');
+                    shade.addColorStop(0.76, 'rgba(5, 32, 48, 0.00)');
+                    shade.addColorStop(1, 'rgba(5, 32, 48, 0.38)');
+                    ctx.fillStyle = shade;
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                    // Give the landscape menu its own uncluttered mascot area.
+                    const hero = assets.sparky_greeting || assets.sparky_neutral;
+                    if (hero) {
+                        const heroHeight = 470;
+                        const heroWidth = heroHeight * hero.width / hero.height;
+                        ctx.fillStyle = 'rgba(14, 66, 36, .22)';
+                        ctx.beginPath();
+                        ctx.ellipse(330, 644, 145, 24, 0, 0, Math.PI * 2);
+                        ctx.fill();
+                        ctx.drawImage(hero, 330 - heroWidth / 2, 644 - heroHeight, heroWidth, heroHeight);
+                    }
+                } else {
+                    const bg = assets.background_football_field;
+                    if (bg && bg.width && bg.height) {
+                        const bgAspect = bg.width / bg.height;
+                        const canvasAspect = canvas.width / canvas.height;
+                        let drawWidth, drawHeight, offsetX, offsetY;
+                        if (bgAspect > canvasAspect) {
+                            drawHeight = canvas.height;
+                            drawWidth = drawHeight * bgAspect;
+                            offsetX = (canvas.width - drawWidth) / 2;
+                            offsetY = 0;
+                        } else {
+                            drawWidth = canvas.width;
+                            drawHeight = drawWidth / bgAspect;
+                            offsetX = 0;
+                            offsetY = (canvas.height - drawHeight) / 2;
+                        }
+                        ctx.drawImage(bg, offsetX, offsetY, drawWidth, drawHeight);
+                    }
+                }
+                
+                if (!gameStarted) {
+                    requestAnimationFrame(render);
+                    return;
+                }
+                
+                // Fixed scene zones keep the board, goal and answer row separated.
+                
+                if (assets.football_goal_with_net) {
+                    ctx.drawImage(assets.football_goal_with_net, goalX, goalY, goalWidth, goalHeight);
+                }
+                
+                // Draw scoreboard
+                if (currentQuestion) {
+                    const scoreboardWidth = 480;
+                    const scoreboardHeight = 150;
+                    const scoreboardX = 590;
+                    const scoreboardY = 116;
+                    
+                    ctx.fillStyle = 'rgba(44, 62, 80, 0.9)';
+                    ctx.strokeStyle = '#FFFFFF';
+                    ctx.lineWidth = 4;
+                    const radius = 16;
+                    
+                    ctx.beginPath();
+                    ctx.moveTo(scoreboardX + radius, scoreboardY);
+                    ctx.lineTo(scoreboardX + scoreboardWidth - radius, scoreboardY);
+                    ctx.quadraticCurveTo(scoreboardX + scoreboardWidth, scoreboardY, scoreboardX + scoreboardWidth, scoreboardY + radius);
+                    ctx.lineTo(scoreboardX + scoreboardWidth, scoreboardY + scoreboardHeight - radius);
+                    ctx.quadraticCurveTo(scoreboardX + scoreboardWidth, scoreboardY + scoreboardHeight, scoreboardX + scoreboardWidth - radius, scoreboardY + scoreboardHeight);
+                    ctx.lineTo(scoreboardX + radius, scoreboardY + scoreboardHeight);
+                    ctx.quadraticCurveTo(scoreboardX, scoreboardY + scoreboardHeight, scoreboardX, scoreboardY + scoreboardHeight - radius);
+                    ctx.lineTo(scoreboardX, scoreboardY + radius);
+                    ctx.quadraticCurveTo(scoreboardX, scoreboardY, scoreboardX + radius, scoreboardY);
+                    ctx.closePath();
+                    ctx.fill();
+                    ctx.stroke();
+                    ctx.fillStyle = '#d7f6ff';
+                    ctx.font = 'bold 22px Fredoka, sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText('COUNT THE BALLS', scoreboardX + scoreboardWidth / 2, scoreboardY + 27);
+                    
+                    // Draw football icons
+                    const iconSize = 38;
+                    const iconSpacing = 14;
+                    const maxPerRow = 5;
+                    const numRows = Math.ceil(currentQuestion.targetNumber / maxPerRow);
+                    
+                    for (let i = 0; i < currentQuestion.targetNumber; i++) {
+                        const row = Math.floor(i / maxPerRow);
+                        const col = i % maxPerRow;
+                        const numInRow = Math.min(maxPerRow, currentQuestion.targetNumber - row * maxPerRow);
+                        const rowWidth = numInRow * (iconSize + iconSpacing) - iconSpacing;
+                        const startX = scoreboardX + (scoreboardWidth - rowWidth) / 2;
+                        const startY = scoreboardY + 48 + (96 - (numRows * (iconSize + iconSpacing) - iconSpacing)) / 2;
+                        
+                        const x = startX + col * (iconSize + iconSpacing);
+                        const y = startY + row * (iconSize + iconSpacing);
+                        
+                        if (assets.football_small_icon) {
+                            ctx.drawImage(assets.football_small_icon, x, y, iconSize, iconSize);
+                        }
+                    }
+                }
+                
+// Draw Sparky + speech bubble as one group
+if (window.gameConfig.visual.sparky_enabled) {
+    const sparkyWidth = 240;
+    const sparkyHeight = 315;
+
+    // Sparky has a dedicated lane, clear of every answer choice.
+    const sparkyX = 82;
+    const sparkyY = 337;
+
+
+    const idleState = Math.floor(timestamp / 4300) % 2 === 0
+        ? 'idle_foot_bounce' : 'idle_fingertip_spin';
+    const visibleState = sparkyState === 'neutral' ? idleState : sparkyState;
+    // Floating animation
+    const floatOffset = visibleState === 'idle_foot_bounce'
+        ? Math.abs(Math.sin(timestamp / 230)) * 9
+        : Math.sin(timestamp / 500) * 5;
+    const spriteForState = {
+        greeting: 'sparky_greeting',
+        point_goal: 'sparky_point_goal',
+        point_instruction: 'sparky_point_instruction',
+        kicking_tutorial: 'sparky_kicking_tutorial',
+        supportive: 'sparky_supportive_motivating',
+        supportive_motivating: 'sparky_supportive_motivating',
+        idle_foot_bounce: 'sparky_idle_foot_bounce',
+        idle_fingertip_spin: 'sparky_idle_fingertip_spin',
+        celebrating: 'sparky_celebrating',
+        encouraging: 'sparky_encouraging',
+        neutral: 'sparky_neutral'
+    };
+    const sparkyImage = assets[spriteForState[visibleState]] || assets.sparky_neutral;
+
+    // Draw Sparky
+    if (sparkyImage) {
+        const frameRatio = sparkyWidth / sparkyHeight;
+        const imageRatio = sparkyImage.width / sparkyImage.height;
+
+        let drawWidth = sparkyWidth;
+        let drawHeight = sparkyHeight;
+
+        if (imageRatio > frameRatio) {
+            drawHeight = sparkyWidth / imageRatio;
+        } else {
+            drawWidth = sparkyHeight * imageRatio;
+        }
+
+        const drawX = sparkyX + (sparkyWidth - drawWidth) / 2;
+        const drawY =
+            sparkyY +
+            floatOffset +
+            (sparkyHeight - drawHeight);
+
+        ctx.drawImage(
+            sparkyImage,
+            drawX,
+            drawY,
+            drawWidth,
+            drawHeight
+        );
+    }
+
+    // ==========================
+    // Speech bubble above Sparky
+    // ==========================
+
+    const bubbleWidth = 320;
+
+    // Keep bubble horizontally aligned with Sparky
+    const bubbleLeft = 42;
+
+    // Bubble sits slightly above Sparky
+    const bubbleTop = 195;
+
+    speechBubble.style.width = `${bubbleWidth}px`;
+    speechBubble.style.left = `${bubbleLeft}px`;
+    speechBubble.style.top = `${bubbleTop}px`;
+} else {
+    speechBubble.style.width = '320px';
+    speechBubble.style.left = '42px';
+    speechBubble.style.top = '195px';
+}
+
+                
+                // Draw answer footballs
+                const answerPositions = getAnswerFootballPositions();
+                answerPositions.forEach((pos, index) => {
+                    // Skip if this is the ball being kicked
+                    if (kickAnimation.active && selectedAnswer === index) {
+                        return;
+                    }
+                    
+                    // Roll the answer row in from beyond the left edge, keeping
+                    // the balls on the field with a soft grounded shadow (no hover).
+                    const entranceProgress = answersEntering
+                        ? Math.max(0, Math.min(1, (timestamp - answerEntranceStart) / answerEntranceDuration))
+                        : 1;
+                    if (answersEntering && entranceProgress >= 1) answersEntering = false;
+                    const easedEntrance = 1 - Math.pow(1 - entranceProgress, 3);
+                    const travelDistance = canvas.width + pos.radius * 2;
+                    const entranceOffset = travelDistance * (1 - easedEntrance);
+                    const ballX = pos.x - entranceOffset;
+                    const drawY = pos.y;
+
+                    // A small squash on press remains, but the balls stay settled
+                    // and still between questions instead of bobbing in the air.
+                    const scale = selectedAnswer === index && !kickAnimation.active ? 0.95 : 1;
+                    const size = pos.radius * 2 * scale;
+                    const ballColors = ['#ffb52e', '#25c9ef', '#ff6685', '#9c73f5', '#69d34b'];
+
+                    // Ground shadow follows the rolling ball and gives it a clear
+                    // contact point with the pitch.
+                    ctx.save();
+                    ctx.globalAlpha = 0.24 * (0.55 + entranceProgress * 0.45);
+                    ctx.fillStyle = '#173b22';
+                    ctx.beginPath();
+                    ctx.ellipse(ballX, drawY + pos.radius * 0.82, size * 0.37, size * 0.095, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.restore();
+
+                    // Rotate the ball artwork in proportion to rolling distance.
+                    const rollRotation = entranceOffset / Math.max(1, pos.radius);
+                    ctx.save();
+                    ctx.translate(ballX, drawY);
+                    ctx.rotate(rollRotation);
+                    ctx.beginPath();
+                    ctx.arc(0, 0, size / 2, 0, Math.PI * 2);
+                    ctx.fillStyle = ballColors[index % ballColors.length];
+                    ctx.fill();
+                    if (assets.football_answer_template) {
+                        ctx.drawImage(assets.football_answer_template, -size / 2, -size / 2, size, size);
+                    }
+                    ctx.restore();
+
+                    // Keep the center and numeral upright for easy reading.
+                    ctx.beginPath();
+                    ctx.arc(ballX, drawY, size * 0.25, 0, Math.PI * 2);
+                    ctx.fillStyle = '#ffffff';
+                    ctx.fill();
+                    ctx.fillStyle = '#000000';
+                    ctx.font = 'bold 48px Fredoka, sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText(pos.number, ballX, drawY);
+
+                    // Guided practice uses a friendly finger cue on the matching ball.
+                    if (tutorialActive && index === currentQuestion.correctAnswerIndex) {
+                        const cueBounce = Math.sin(timestamp / 180) * 3;
+                        ctx.save();
+                        ctx.font = '44px sans-serif';
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'middle';
+                        // Keep the down-pointing fingertip anchored to the target ball,
+                        // with a slight overlap so it clearly indicates that choice.
+                        ctx.fillText('👇', ballX, drawY - pos.radius - 13 + cueBounce);
+                        ctx.restore();
+                    }
+                });
+                
+                // Draw kicking football
+                if (kickAnimation.active) {
+                    if (advancing) kickAnimation.progress += delta / 650;
+                    
+                    if (kickAnimation.progress >= 1) {
+                        kickAnimation.active = false;
+                        kickAnimation.progress = 0;
+                        
+                        // Trigger celebration particles
+                        createStarBurst(goalX + goalWidth / 2, goalY + goalHeight / 2);
+                    } else {
+                        // Curved trajectory
+                        const t = kickAnimation.progress;
+                        const x = kickAnimation.startX + (kickAnimation.endX - kickAnimation.startX) * t;
+                        const curveHeight = -150;
+                        const y = kickAnimation.startY + (kickAnimation.endY - kickAnimation.startY) * t + 
+                                  curveHeight * Math.sin(t * Math.PI);
+                        
+                        const size = 120 * (1 - t * 0.3); // Shrink as it goes
+                        const rotation = t * Math.PI * 4;
+                        
+                        ctx.save();
+                        ctx.translate(x, y);
+                        ctx.rotate(rotation);
+                        
+                        const kickColors = ['#ffb52e', '#25c9ef', '#ff6685', '#9c73f5', '#69d34b'];
+                        ctx.beginPath();
+                        ctx.arc(0, 0, size / 2, 0, Math.PI * 2);
+                        ctx.fillStyle = kickColors[selectedAnswer % kickColors.length];
+                        ctx.fill();
+                        if (assets.football_answer_template) {
+                            ctx.drawImage(
+                                assets.football_answer_template,
+                                -size / 2,
+                                -size / 2,
+                                size,
+                                size
+                            );
+                        }
+                        ctx.beginPath();
+                        ctx.arc(0, 0, size * 0.25, 0, Math.PI * 2);
+                        ctx.fillStyle = '#ffffff';
+                        ctx.fill();
+                        
+                        // Draw numeral
+                        ctx.rotate(-rotation);
+                        ctx.fillStyle = '#000000';
+                        ctx.font = 'bold 48px Fredoka, sans-serif';
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'middle';
+                        ctx.fillText(currentQuestion.answers[selectedAnswer], 0, 0);
+                        
+                        ctx.restore();
+                    }
+                }
+                
+                // Shake animation for incorrect
+                if (selectedAnswer !== null && !kickAnimation.active && 
+                    selectedAnswer !== currentQuestion.correctAnswerIndex && isAnimating) {
+                    const pos = answerPositions[selectedAnswer];
+                    const shakeX = Math.sin(timestamp / 50) * 10;
+                    
+                    ctx.save();
+                    ctx.translate(shakeX, 0);
+                    
+                    const size = pos.radius * 2;
+                    const wrongColors = ['#ffb52e', '#25c9ef', '#ff6685', '#9c73f5', '#69d34b'];
+                    ctx.beginPath();
+                    ctx.arc(pos.x, pos.y, size / 2, 0, Math.PI * 2);
+                    ctx.fillStyle = wrongColors[selectedAnswer % wrongColors.length];
+                    ctx.fill();
+                    if (assets.football_answer_template) {
+                        ctx.drawImage(
+                            assets.football_answer_template,
+                            pos.x - size / 2,
+                            pos.y - size / 2,
+                            size,
+                            size
+                        );
+                    }
+                    ctx.beginPath();
+                    ctx.arc(pos.x, pos.y, size * 0.25, 0, Math.PI * 2);
+                    ctx.fillStyle = '#ffffff';
+                    ctx.fill();
+                    
+                    ctx.fillStyle = '#000000';
+                    ctx.font = 'bold 48px Fredoka, sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText(pos.number, pos.x, pos.y);
+                    
+                    ctx.restore();
+                }
+                
+                // Draw particles
+                for (let i = particles.length - 1; i >= 0; i--) {
+                    const p = particles[i];
+                    if (advancing) {
+                        p.x += p.vx * delta / 16.67;
+                        p.y += p.vy * delta / 16.67;
+                        p.life -= p.decay * delta / 16.67;
+                    }
+                    
+                    if (p.life <= 0) {
+                        particles.splice(i, 1);
+                        continue;
+                    }
+                    
+                    ctx.save();
+                    ctx.globalAlpha = p.life;
+                    
+                    if (assets.star_particle) {
+                        ctx.drawImage(
+                            assets.star_particle,
+                            p.x - p.size / 2,
+                            p.y - p.size / 2,
+                            p.size,
+                            p.size
+                        );
+                    }
+                    
+                    ctx.restore();
+                }
+                
+                requestAnimationFrame(render);
+            }
+
+            // Start render loop
+            requestAnimationFrame(render);
+        }
+
+        // Wait for the local configuration and asset map before entering the game.
+        const launchButton = document.getElementById('play-btn');
+        launchButton.disabled = true;
+        launchButton.textContent = 'LOADING…';
+        window.localGameReady.then(() => run(window.mode)).then(() => {
+            launchButton.disabled = false;
+            launchButton.textContent = 'PLAY';
+        }).catch(error => {
+            console.error('Game startup failed:', error);
+            launchButton.textContent = 'LOAD FAILED';
+            document.querySelector('#start-screen h2').textContent = 'Start the local server, then refresh. See the console for details.';
+        });
+    </script>
+</body>
+</html>
